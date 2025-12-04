@@ -200,32 +200,35 @@ def create_image_with_text(text_to_overlay, drive_service, slide_index, theme):
 
 # Hàm Tạo thư mục và tải lên Drive (ví dụ)
 def create_drive_folder(folder_name, parent_folder_id, drive_service):
-    # ... (Giữ nguyên logic của bạn) ...
-    print(f"Bắt đầu: Tạo thư mục mới '{folder_name}'...")
+    """
+    Tạo tên thư mục mới bằng cách thêm timestamp (số giây + mili giây)
+    để đảm bảo tính duy nhất và tạo thư mục ngay lập tức.
+    """
     try:
-        file_list = drive_service.ListFile(
-            {'q': f"title='{folder_name}' and '{parent_folder_id}' in parents and trashed=false"}
-        ).GetList()
+        # 1. Lấy timestamp chính xác (dạng số, bao gồm mili giây)
+        # Ví dụ: 1733215914519
+        timestamp_ms = int(time.time() * 1000)
 
-        if file_list:
-            folder_id = file_list[0]['id']
-            print(f"  - Thư mục đã tồn tại. Sử dụng ID: {folder_id}")
-            return folder_id
-        else:
-            folder_metadata = {
-                'title': folder_name,
-                'mimeType': 'application/vnd.google-apps.folder',
-                'parents': [{'id': parent_folder_id}]
-            }
-            folder = drive_service.CreateFile(folder_metadata)
-            folder.Upload()
-            print(f"  - Đã tạo thư mục mới. ID: {folder['id']}")
-            return folder['id']
+        # 2. Tạo tên thư mục duy nhất
+        # Tên mới sẽ có dạng: Tên_Gốc_1733215914519
+        unique_folder_name = f"{folder_name}_{timestamp_ms}"
+
+        print(f"Bắt đầu: Tạo thư mục mới với Timestamp...")
+
+        # 3. Tạo thư mục ngay lập tức
+        folder_metadata = {
+            'title': unique_folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [{'id': parent_folder_id}]
+        }
+        folder = drive_service.CreateFile(folder_metadata)
+        folder.Upload()
+        print(f"  - Đã tạo thư mục mới duy nhất: '{unique_folder_name}'. ID: {folder['id']}")
+        return folder['id']
 
     except Exception as e:
         print(f"Lỗi khi tạo thư mục Google Drive: {e}")
         return None
-
 
 # --- HÀM TẢI ẢNH LÊN GOOGLE DRIVE ---
 # (Giữ nguyên như kịch bản trước)
