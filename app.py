@@ -46,7 +46,8 @@ PHONG_THUY_DRIVE_FOLDER_ID = os.getenv("PHONG_THUY_DRIVE_FOLDER_ID")
 TU_VI_DRIVE_FOLDER_ID = os.getenv("TU_VI_DRIVE_FOLDER_ID")
 TAROT_DRIVE_FOLDER_ID = os.getenv("TAROT_DRIVE_FOLDER_ID")
 CUNG_HOANG_DAO_DRIVE_FOLDER_ID = os.getenv("CUNG_HOANG_DAO_DRIVE_FOLDER_ID")
-
+FAIRY_TALE_DRIVE_FOLDER_ID = os.getenv("FAIRY_TALE_DRIVE_FOLDER_ID")
+JOKE_DRIVE_FOLDER_ID = os.getenv("JOKE_DRIVE_FOLDER_ID")
 
 # 4. Các đường dẫn cục bộ (Giữ nguyên hoặc chỉnh sửa theo nhu cầu)
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -565,6 +566,108 @@ def propose_content_and_image_query(app_name, user_input, num_slides=4):
         return None, None, None
 
 
+# --- HÀM TẠO TRUYỆN CỔ TÍCH (GEMINI) ---
+def generate_fairy_tale():
+    print("Bắt đầu: Yêu cầu Gemini tạo một câu chuyện cổ tích ngẫu nhiên...")
+
+    # System Prompt cho Truyện Cổ Tích
+    system_prompt = """
+    Bạn là một nhà kể chuyện cổ tích chuyên nghiệp. Nhiệm vụ của bạn là chọn MỘT câu chuyện cổ tích kinh điển/phổ biến từ bất kỳ nền văn hóa nào trên thế giới (ví dụ: Grimms, Andersen, Việt Nam, Trung Quốc, v.v.), sau đó tóm tắt nó thành một kịch bản hấp dẫn.
+    QUY TẮC:
+    1. Câu chuyện phải là một truyện cổ tích có tính giáo dục hoặc truyền cảm hứng.
+    2. Kịch bản phải dài từ **4 đến 10 slides**. Mỗi slide phải là một đoạn văn ngắn (tối đa 40 từ).
+    3. Output BẮT BUỘC phải là một đối tượng JSON (array of objects) với các khóa sau:
+       - 'text': Nội dung ngắn gọn cho slide.
+       - 'image_query': Một từ khóa tiếng Anh ngắn gọn (2-5 từ) để tìm ảnh minh họa cho slide này (Ví dụ: 'magical castle', 'brave prince', 'evil witch').
+       - 'caption': Phần caption cuối cùng cho toàn bộ video (chứa cả hashtag).
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[system_prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        )
+
+        data = json.loads(response.text)
+        caption = "Câu chuyện cổ tích." # Caption mặc định
+
+        # XỬ LÝ LINH HOẠT TỪ ĐIỂN HOẶC DANH SÁCH (Tương tự hàm generate_story_and_prompts)
+        if isinstance(data, dict):
+             # Trường hợp Gemini trả về object { "slides": [{}], "caption": "..." }
+            story_slides = data.get('slides', data.get('story', []))
+            caption = data.get('caption', caption)
+        elif isinstance(data, list):
+            # Trường hợp Gemini trả về array trực tiếp [{}, {}]
+            story_slides = data
+            if story_slides and 'caption' in story_slides[-1]:
+                caption = story_slides[-1]['caption'] # Lấy caption từ slide cuối nếu có
+        else:
+            story_slides = []
+
+        if not story_slides or not isinstance(story_slides, list):
+            print("Lỗi: Gemini không trả về dữ liệu slides hợp lệ cho Cổ Tích.")
+            return None, None
+
+        print("✅ Đã tạo kịch bản Truyện Cổ Tích thành công.")
+        return story_slides, caption
+
+    except Exception as e:
+        print(f"Lỗi khi gọi Gemini tạo kịch bản Truyện Cổ Tích: {e}")
+        return None, None
+
+# --- HÀM TẠO TRUYỆN CƯỜI (GEMINI) ---
+def generate_joke():
+    print("Bắt đầu: Yêu cầu Gemini tạo một câu chuyện cười ngắn, mạnh...")
+
+    # System Prompt cho Truyện Cười
+    system_prompt = """
+    Bạn là một diễn viên hài độc thoại chuyên nghiệp. Nhiệm vụ của bạn là tạo MỘT câu chuyện cười/tình huống hài hước ngắn gọn.
+    QUY TẮC:
+    1. Câu chuyện phải cực kỳ ngắn gọn, có **tác động gây cười mạnh mẽ và bất ngờ** ở slide cuối cùng.
+    2. Kịch bản phải dài **3 đến 5 slides** (tình huống, diễn biến, punchline). Mỗi slide TỐI ĐA 30 từ.
+    3. Output BẮT BUỘC phải là một đối tượng JSON (array of objects) với các khóa sau:
+       - 'text': Nội dung ngắn gọn cho slide.
+       - 'image_query': Một từ khóa tiếng Anh hài hước/độc đáo (3-5 từ) để tìm ảnh nền cho slide này (Ví dụ: 'surprised face meme', 'funny cartoon dog', 'awkward situation').
+       - 'caption': Phần caption cuối cùng cho toàn bộ video (chứa cả hashtag).
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[system_prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        )
+
+        data = json.loads(response.text)
+        caption = "Truyện cười hài hước." # Caption mặc định
+
+        # XỬ LÝ LINH HOẠT (Tương tự hàm generate_fairy_tale)
+        if isinstance(data, dict):
+            story_slides = data.get('slides', data.get('joke', []))
+            caption = data.get('caption', caption)
+        elif isinstance(data, list):
+            story_slides = data
+            if story_slides and 'caption' in story_slides[-1]:
+                caption = story_slides[-1]['caption']
+        else:
+            story_slides = []
+
+        if not story_slides or not isinstance(story_slides, list) or len(story_slides) < 3:
+            print("Lỗi: Gemini không trả về dữ liệu slides hợp lệ cho Truyện Cười (Cần ít nhất 3 slides).")
+            return None, None
+
+        print("✅ Đã tạo kịch bản Truyện Cười thành công.")
+        return story_slides, caption
+
+    except Exception as e:
+        print(f"Lỗi khi gọi Gemini tạo kịch bản Truyện Cười: {e}")
+        return None, None
+
 # ==========================================================
 # --- KHỐI HÀM APP CON ---
 # ==========================================================
@@ -741,6 +844,81 @@ def run_cung_hoang_dao(drive_service, topic):
         full_message = (f"✅ <b>Quy trình CUNG HOÀNG ĐẠO HOÀN TẤT!</b>\n<b>Chủ đề:</b> {topic}\n<b>Caption gợi ý:</b> {final_caption}")
         send_telegram_notification(full_message, image_urls=drive_file_links)
 
+# --- HÀM APP TRUYỆN CỔ TÍCH ---
+def run_fairy_tale_app(drive_service, topic=None): # Giữ topic để phù hợp với hàm main, nhưng không dùng
+    print("--- ✨ App TRUYỆN CỔ TÍCH Khởi Động ---")
+
+    # 1. TẠO NỘI DUNG & PROMPT ẢNH (Không cần chủ đề)
+    # Hàm generate_fairy_tale sẽ trả về story_slides (gồm text và image_query) và final_caption
+    story_slides, final_caption = generate_fairy_tale()
+    if not story_slides: return
+
+    # 2. TẠO THƯ MỤC VÀ UPLOAD
+    # Tên thư mục sẽ lấy một phần nội dung slide đầu tiên
+    first_text = story_slides[0]['text'].split('.')[0].strip()
+    safe_folder_name = f"CT {first_text}"
+    new_folder_id = create_drive_folder(safe_folder_name, FAIRY_TALE_DRIVE_FOLDER_ID, drive_service)
+
+    if not new_folder_id:
+        send_telegram_notification(f"❌ Lỗi: Không thể tạo thư mục Drive cho Truyện Cổ Tích.")
+        return
+
+    drive_file_links = []
+    for i, slide in enumerate(story_slides):
+        # TẠO ẢNH: Sử dụng image_query của từng slide
+        image_query = slide.get('image_query', 'magical fairy tale forest') # Image query dự phòng
+        final_image_file = create_image_with_text(
+            slide['text'],
+            drive_service,
+            i + 1,
+            image_query
+        )
+        if final_image_file:
+            drive_link = upload_to_drive(final_image_file, drive_service, new_folder_id)
+            if drive_link: drive_file_links.append(drive_link)
+            if os.path.exists(final_image_file): os.remove(final_image_file)
+
+    if drive_file_links:
+        full_message = (f"✅ <b>Quy trình TRUYỆN CỔ TÍCH HOÀN TẤT!</b>\n<b>Chủ đề:</b> {first_text}...\n<b>Caption gợi ý:</b> {final_caption}")
+        send_telegram_notification(full_message, image_urls=drive_file_links)
+
+# --- HÀM APP TRUYỆN CƯỜI ---
+def run_joke_app(drive_service, topic=None): # Giữ topic để phù hợp với hàm main, nhưng không dùng
+    print("--- 😂 App TRUYỆN CƯỜI Khởi Động ---")
+
+    # 1. TẠO NỘI DUNG & PROMPT ẢNH (Không cần chủ đề)
+    story_slides, final_caption = generate_joke()
+    if not story_slides: return
+
+    # 2. TẠO THƯ MỤC VÀ UPLOAD
+    # Tên thư mục sẽ lấy một phần nội dung slide đầu tiên
+    first_text = story_slides[0]['text'].split('.')[0].strip()
+    safe_folder_name = f"TC {first_text}"
+    new_folder_id = create_drive_folder(safe_folder_name, JOKE_DRIVE_FOLDER_ID, drive_service)
+
+    if not new_folder_id:
+        send_telegram_notification(f"❌ Lỗi: Không thể tạo thư mục Drive cho Truyện Cười.")
+        return
+
+    drive_file_links = []
+    for i, slide in enumerate(story_slides):
+        # TẠO ẢNH: Sử dụng image_query của từng slide
+        image_query = slide.get('image_query', 'funny unexpected moment') # Image query dự phòng
+        final_image_file = create_image_with_text(
+            slide['text'],
+            drive_service,
+            i + 1,
+            image_query
+        )
+        if final_image_file:
+            drive_link = upload_to_drive(final_image_file, drive_service, new_folder_id)
+            if drive_link: drive_file_links.append(drive_link)
+            if os.path.exists(final_image_file): os.remove(final_image_file)
+
+    if drive_file_links:
+        full_message = (f"✅ <b>Quy trình TRUYỆN CƯỜI HOÀN TẤT!</b>\n<b>Chủ đề:</b> {first_text}...\n<b>Caption gợi ý:</b> {final_caption}")
+        send_telegram_notification(full_message, image_urls=drive_file_links)
+
 # ==========================================================
 # --- KHỐI CẤU HÌNH TỰ ĐỘNG CHỌN (MỚI) ---
 # ==========================================================
@@ -752,7 +930,9 @@ APP_COLUMN_MAPPING = {
     "PHONGTHUY": 2,
     "TUVI": 3,
     "TAROT": 4,
-    "CUNGHOANGDAO": 5
+    "CUNGHOANGDAO": 5,
+    "FAIRYTALE": 6,
+    "JOKE": 7
 }
 
 # ==========================================================
@@ -928,15 +1108,37 @@ if __name__ == "__main__":
             2: run_phong_thuy,
             3: run_la_so_tu_vi,
             4: run_tarot,
-            5: run_cung_hoang_dao
+            5: run_cung_hoang_dao,
+            6: run_fairy_tale_app,
+            7: run_joke_app
         }
 
+        # 1. TẠO APP_MODES TỪ SHEET (cho các app cũ)
         for app_id, config in dynamic_app_modes_raw.items():
             if app_id in APP_FUNCTION_MAP:
                 config["function"] = APP_FUNCTION_MAP[app_id]
                 APP_MODES[app_id] = config
             else:
                 print(f"Cảnh báo: Không tìm thấy hàm thực thi cho ID ứng dụng {app_id}. Bỏ qua.")
+
+        # 2. THÊM CÁC APP KHÔNG CẦN SHEET VÀO APP_MODES (Cho các app mới)
+        # Thêm Truyện Cổ Tích
+        if 6 not in APP_MODES:
+            APP_MODES[6] = {
+                "name": "Truyện Cổ Tích (AI)",
+                "domains": ["AI_GENERATED_FAIRY_TALE"], # Dùng một chủ đề giả để logic check không bị lỗi
+                "function": run_fairy_tale_app,
+                "mode": "auto" # Thiết lập mặc định
+            }
+
+        # Thêm Truyện Cười
+        if 7 not in APP_MODES:
+            APP_MODES[7] = {
+                "name": "Truyện Cười (AI)",
+                "domains": ["AI_GENERATED_JOKE"], # Dùng một chủ đề giả để logic check không bị lỗi
+                "function": run_joke_app,
+                "mode": "auto" # Thiết lập mặc định
+            }
 
         if not APP_MODES:
             print("\n❌ Lỗi: Không có ứng dụng nào được cấu hình hợp lệ sau khi tải Sheet. Chương trình sẽ thử lại sau 5 giây.")
@@ -968,27 +1170,32 @@ if __name__ == "__main__":
         # B. Kiểm tra chủ đề và THỰC THI
         if app_domains:
             # --- LOGIC CHỌN DOMAIN DỰA TRÊN APP_ID ---
-            if app_id == 1: # CAUCHUYEN (Cột A)
-                # Rule 1: Chọn ngẫu nhiên
+            chosen_domain = None
+            if app_id == 1: # CAUCHUYEN
+                # Rule 1: Chọn ngẫu nhiên từ domains
                 chosen_domain = random.choice(app_domains)
                 print("Lựa chọn: Ngẫu nhiên (CAUCHUYEN)")
-            else:
-                # Rule 2: Chọn chủ đề ĐẦU TIÊN
+            elif app_id in [6, 7]: # FAIRYTALE hoặc JOKE
+                # Rule 3: KHÔNG CẦN DOMAIN TỪ SHEET, AI TỰ TẠO
+                chosen_domain = f"AI_Generated_{app_name}"
+                print(f"Lựa chọn: Chủ đề tự động tạo bởi AI ({app_name})")
+            elif app_domains:
+                # Rule 2: Chọn chủ đề ĐẦU TIÊN (Cho các app còn lại)
                 chosen_domain = app_domains[0]
                 print("Lựa chọn: Chủ đề đầu tiên của cột (B->E)")
-            # -----------------------------------------------
 
-            print(f"✅ Đã chọn Chủ đề: **{chosen_domain}**")
+            if chosen_domain:
+                print(f"✅ Đã chọn Chủ đề: **{chosen_domain}**")
 
-            try:
-                print(f"\n--- BẮT ĐẦU THỰC THI: {app_name.upper()} ---")
-                app_func(drive_service, chosen_domain)
-                print(f"\n--- KẾT THÚC THỰC THI: {app_name.upper()} ---\n")
-            except Exception as e:
-                # GỬI THÔNG BÁO LỖI CHẠY ỨNG DỤNG
-                error_msg_run_app = f"❌ Lỗi nghiêm trọng trong quá trình chạy ứng dụng {app_name}: {e}"
-                print(error_msg_run_app)
-                send_telegram_notification(f"LỖI CHẠY APP: {error_msg_run_app}")
+                try:
+                    print(f"\n--- BẮT ĐẦU THỰC THI: {app_name.upper()} ---")
+                    app_func(drive_service, chosen_domain)
+                    print(f"\n--- KẾT THÚC THỰC THI: {app_name.upper()} ---\n")
+                except Exception as e:
+                    # GỬI THÔNG BÁO LỖI CHẠY ỨNG DỤNG
+                    error_msg_run_app = f"❌ Lỗi nghiêm trọng trong quá trình chạy ứng dụng {app_name}: {e}"
+                    print(error_msg_run_app)
+                    send_telegram_notification(f"LỖI CHẠY APP: {error_msg_run_app}")
 
             # D. Tùy chọn tiếp tục hoặc dừng hẳn (CHỈ HỎI KHI CHẠY THÀNH CÔNG/GẶP LỖI SAU KHI CHỌN DOMAIN)
             while True:
