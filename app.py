@@ -213,7 +213,7 @@ def create_drive_folder(folder_name, parent_folder_id, drive_service):
 
         # 2. Tạo tên thư mục duy nhất
         # Tên mới sẽ có dạng: Tên_Gốc_1733215914519
-        unique_folder_name = f"{folder_name}_{timestamp_ms}"
+        unique_folder_name = f"{folder_name} {timestamp_ms}"
 
         print(f"Bắt đầu: Tạo thư mục mới với Timestamp...")
 
@@ -588,7 +588,7 @@ def run_story_app(drive_service, theme_domain):
         return
 
     # 3. TẠO THƯ MỤC MỚI
-    safe_folder_name = re.sub(r'[^\w\s-]', '', chosen_theme).strip()[:50].replace(' ', '-')
+    safe_folder_name = re.sub(r'[^\w\s-]', '', chosen_theme).strip()[:50] # bỏ .replace(' ', '-')
     new_folder_id = create_drive_folder(safe_folder_name, STORY_DRIVE_FOLDER_ID, drive_service)
 
     if not new_folder_id:
@@ -634,7 +634,7 @@ def run_phong_thuy(drive_service, topic):
     if not story_slides: return
 
     # 2. TẠO THƯ MỤC VÀ UPLOAD
-    safe_folder_name = f"PT-{topic}".replace(' ', '-')
+    safe_folder_name = f"PT {topic}" # bỏ .replace(' ', '-')
     new_folder_id = create_drive_folder(safe_folder_name, PHONG_THUY_DRIVE_FOLDER_ID, drive_service)
 
     if not new_folder_id:
@@ -666,7 +666,7 @@ def run_la_so_tu_vi(drive_service, topic):
     story_slides, image_query, final_caption = propose_content_and_image_query('tu_vi', topic, num_slides=5)
     if not story_slides: return
 
-    safe_folder_name = f"TV-{topic}".replace(' ', '-')
+    safe_folder_name = f"TV {topic}" # bỏ .replace(' ', '-')
     new_folder_id = create_drive_folder(safe_folder_name, TU_VI_DRIVE_FOLDER_ID, drive_service)
 
     if not new_folder_id:
@@ -697,7 +697,7 @@ def run_tarot(drive_service, topic):
     story_slides, image_query, final_caption = propose_content_and_image_query('tarot', topic, num_slides=3)
     if not story_slides: return
 
-    safe_folder_name = f"Tarot-{topic}".replace(' ', '-')
+    safe_folder_name = f"Tarot {topic}" # bỏ .replace(' ', '-')
     new_folder_id = create_drive_folder(safe_folder_name, TAROT_DRIVE_FOLDER_ID, drive_service)
 
     if not new_folder_id: return
@@ -723,7 +723,7 @@ def run_cung_hoang_dao(drive_service, topic):
     story_slides, image_query, final_caption = propose_content_and_image_query('cung_hoang_dao', topic, num_slides=5)
     if not story_slides: return
 
-    safe_folder_name = f"CHĐ-{topic}".replace(' ', '-')
+    safe_folder_name = f"CHĐ {topic}" # bỏ .replace(' ', '-')
     new_folder_id = create_drive_folder(safe_folder_name, CUNG_HOANG_DAO_DRIVE_FOLDER_ID, drive_service)
 
     if not new_folder_id: return
@@ -965,9 +965,19 @@ if __name__ == "__main__":
         print(f"🤖 Đang chọn ứng dụng...")
         print(f"✅ Đã chọn Ứng dụng {app_id}: {app_name}")
 
-        # B. Kiểm tra lĩnh vực/chủ đề và THỰC THI
+        # B. Kiểm tra chủ đề và THỰC THI
         if app_domains:
-            chosen_domain = random.choice(app_domains)
+            # --- LOGIC CHỌN DOMAIN DỰA TRÊN APP_ID ---
+            if app_id == 1: # CAUCHUYEN (Cột A)
+                # Rule 1: Chọn ngẫu nhiên
+                chosen_domain = random.choice(app_domains)
+                print("Lựa chọn: Ngẫu nhiên (CAUCHUYEN)")
+            else:
+                # Rule 2: Chọn chủ đề ĐẦU TIÊN
+                chosen_domain = app_domains[0]
+                print("Lựa chọn: Chủ đề đầu tiên của cột (B->E)")
+            # -----------------------------------------------
+
             print(f"✅ Đã chọn Chủ đề: **{chosen_domain}**")
 
             try:
@@ -982,25 +992,44 @@ if __name__ == "__main__":
 
             # D. Tùy chọn tiếp tục hoặc dừng hẳn (CHỈ HỎI KHI CHẠY THÀNH CÔNG/GẶP LỖI SAU KHI CHỌN DOMAIN)
             while True:
-                prompt = f"Bạn có muốn tiếp tục chạy một vòng lặp ngẫu nhiên nữa không? (y/n) (Tự động tiếp tục sau {TIMEOUT_SECONDS}s): "
-                print(prompt, end='', flush=True) # Dùng flush=True để đảm bảo prompt được in ra ngay lập tức
+                try:
+                    # Cố gắng thực hiện Input có Timeout (sẽ lỗi trên Windows)
+                    prompt = f"Bạn có muốn tiếp tục chạy một vòng lặp ngẫu nhiên nữa không? (y/n) (Tự động tiếp tục sau {TIMEOUT_SECONDS}s): "
+                    print(prompt, end='', flush=True)
 
-                # Sử dụng select.select để chờ input trong x giây
-                i, _, _ = select.select([sys.stdin], [], [], TIMEOUT_SECONDS)
+                    # Sử dụng select.select để chờ input trong x giây
+                    # Lỗi WinError 10038 sẽ xảy ra tại đây trên Windows
+                    i, _, _ = select.select([sys.stdin], [], [], TIMEOUT_SECONDS)
 
-                if i:
-                    # Có input, đọc input từ stdin
-                    choice = sys.stdin.readline().strip().lower()
-                else:
-                    # Timeout, tự động chọn 'y'
-                    choice = 'y'
-                    print("\n⏰ Hết giờ! Tự động chọn 'y' (chạy tiếp).")
+                    if i:
+                        # Có input, đọc input từ stdin
+                        choice = sys.stdin.readline().strip().lower()
+                    else:
+                        # Timeout, tự động chọn 'y'
+                        choice = 'y'
+                        print("\n⏰ Hết giờ! Tự động chọn 'y' (chạy tiếp).")
+
+                except OSError as e:
+                    # Bắt lỗi Windows (WinError 10038) hoặc lỗi khác của select
+                    if 'not a socket' in str(e):
+                        # Lỗi Windows đặc trưng -> Chuyển sang chế độ Tự động
+                        print(f"\n⚠️ Cảnh báo Windows: Không thể dùng select.select() với stdin. Chuyển sang chế độ Tự động chạy tiếp sau {TIMEOUT_SECONDS} giây.")
+                        choice = 'y'
+                        time.sleep(TIMEOUT_SECONDS) # Chờ một khoảng thời gian trước khi tự động chạy tiếp
+                    else:
+                        # Xử lý các lỗi OSError khác (Nếu có)
+                        print(f"\n❌ Lỗi OSError nghiêm trọng: {e}. Tự động chạy tiếp.")
+                        choice = 'y'
+                        time.sleep(TIMEOUT_SECONDS)
+
 
                 if choice == 'n':
                     print("Chương trình đã dừng. Tạm biệt!")
                     exit()
                 elif choice == 'y':
+                    # Đảm bảo bạn chỉ ngủ 3 giây hoặc dùng biến TIMEOUT_SECONDS để làm chậm vòng lặp
                     print("Tiếp tục chạy vòng lặp mới sau 3 giây...")
+                    # LƯU Ý: time.sleep(3) hoặc time.sleep(TIMEOUT_SECONDS) tùy ý bạn
                     time.sleep(TIMEOUT_SECONDS)
                     break # Quay lại đầu vòng lặp while True để tải lại cấu hình
                 else:
