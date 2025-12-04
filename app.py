@@ -8,7 +8,6 @@ import random
 import re # Dùng để làm sạch tên thư mục
 import csv
 from io import StringIO
-from dotenv import load_dotenv
 
 # --- Cho Google Drive ---
 from pydrive2.auth import GoogleAuth
@@ -17,6 +16,10 @@ from pydrive2.drive import GoogleDrive
 # --- Cho AI ---
 from google import genai
 from google.genai import types
+
+from dotenv import load_dotenv
+# Tải các biến từ file .env vào môi trường
+load_dotenv()
 
 # ==========================================================
 # --- KHAI BÁO CẤU HÌNH VÀ API KEYS (TỪ FILE .ENV) ---
